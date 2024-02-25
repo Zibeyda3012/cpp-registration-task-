@@ -1,0 +1,345 @@
+#include <iostream>
+#include<cassert>
+#include <windows.h>
+
+using namespace std;
+
+
+class User {
+	string _username;
+	string _password;
+	string _name;
+	string _surname;
+
+public:
+
+	User(string name, string surname, string username, string password)
+	{
+		SetName(name);
+		SetSurname(surname);
+		SetUsername(username);
+		SetPassword(password);
+	}
+
+	User(const User& other)
+	{
+		this->_name = other._name;
+		this->_surname = other._surname;
+		this->_username = other._username;
+		this->_password = other._password;
+
+	}
+
+	void SetName(string name)
+	{
+		int len = name.size();
+
+		if (len < 4) assert(!"name must contain at least 4 symbols!!!");
+
+		for (size_t i = 0; i < len; i++)
+			if (!((name[i] >= 65 && name[i] <= 90) || (name[i] >= 97 && name[i] <= 122)))
+				assert(!"name can only contain letters!!!");
+
+		_name = name;
+
+
+	}
+
+	void SetSurname(string surname)
+	{
+		int len = surname.size();
+
+		if (len < 4) assert(!"surname must contain at least 4 symbols!!!");
+
+		for (size_t i = 0; i < len; i++)
+			if (!((surname[i] >= 65 && surname[i] <= 90) || (surname[i] >= 97 && surname[i] <= 122)))
+				assert(!"surname can only contain letters!!!");
+
+		_surname = surname;
+	}
+
+	void SetUsername(string username)
+	{
+
+		int len = username.size();
+
+		if (len < 6) assert(!"username must contain at least 6 symbols");
+		if (!(username.front() >= 65 && username.front() <= 90))
+			assert(!"username must begin with uppercase letter");
+
+		_username = username;
+
+	}
+
+	void SetPassword(string password)
+	{
+		if (password.size() < 6) assert(!"password must contain at least 6 symbols");
+		_password = password;
+	}
+
+	string GetName()const { return _name; }
+	string GetSurname() const { return _surname; }
+	string GetUsername() const { return _username; }
+	string GetPassword() const { return _password; }
+
+
+	void show() const
+	{
+		cout << endl;
+		cout << "Name: " << _name << endl;
+		cout << "Surname: " << _surname << endl;
+		cout << "Username: " << _username << endl;
+		cout << "Password: " << _password << endl;
+	}
+};
+
+class Database {
+	User** users;
+	int user_count = 0;
+public:
+
+	Database()
+	{
+		users = nullptr;
+		user_count = 0;
+	}
+
+	void addUser(const User& user)
+	{
+		if (this->user_count == 0)
+		{
+			this->users = new User * [1];
+			//users[0] = new User(user.GetName(),user.GetSurname(), user.GetUsername(), user.GetPassword());
+			users[0] = new User(user);
+			user_count++;
+		}
+		else
+		{
+			User** nUsers = new User * [user_count + 1];
+			for (size_t i = 0; i < user_count; i++)
+			{
+				nUsers[i] = users[i];
+			}
+			nUsers[user_count] = new User(user);
+			user_count++;
+
+			delete[] users;
+			users = nUsers;
+		}
+	}
+
+	bool CheckUser(string username)
+	{
+		for (size_t i = 0; i < user_count; i++)
+			if (users[i]->GetUsername() == username)
+				return true;
+
+		return false;
+	}
+
+	User& getUserByUsername(string username)
+	{
+		for (size_t i = 0; i < user_count; i++)
+			if (CheckUser(username))
+				return *users[i];
+
+		assert(!"user not found");
+
+	}
+
+	void printUserByUsername(string username)
+	{
+		for (size_t i = 0; i < user_count; i++)
+			if (CheckUser(username))
+				users[i]->show();
+
+		assert(!"user not found");
+	}
+
+	void updateUser(User& olduser, const User& newuser)
+	{
+		if (CheckUser(olduser.GetUsername()))
+			olduser = newuser;
+		else
+			assert(!"user not found");
+
+	}
+
+	void printAllUsers()
+	{
+		for (size_t i = 0; i < user_count; i++)
+			users[i]->show();
+
+	}
+
+	Database& operator=(const Database& other)
+	{
+		for (size_t i = 0; i < user_count ; i++)
+		{
+			delete users[i];
+			users[i] = nullptr;
+		}
+		delete users;
+
+		this->user_count = other.user_count;
+		this->users = new User * [user_count];
+
+		for (size_t i = 0; i < user_count; i++)
+			users[i] = new User(*other.users[i]);
+
+		return *this;
+	}
+
+	~Database()
+	{
+		for (size_t i = 0; i < user_count; i++)
+		{
+			delete users[i];
+			users[i] = nullptr;
+		}
+
+		delete[] users;
+	}
+
+
+};
+
+class Registration {
+	Database* _database;
+public:
+	Registration(Database* database)
+	{
+		_database = database;
+	}
+
+	void signIn(string username, string password)
+	{
+		if (_database->CheckUser(username))
+		{
+			if (_database->getUserByUsername(username).GetPassword() == password)
+				cout << "you are logged in" << endl;
+			else
+				assert(!"incorrect password");
+		}
+		else
+			assert(!"not found");
+
+	}
+
+	void signUp(string username, string password, string name, string surname)
+	{
+		if (_database->CheckUser(username))
+			assert(!"database exception: this username already exists");
+		else
+			_database->addUser(User(name, surname, username, password));
+		
+		
+	}
+};
+
+
+class System {
+public:
+	static void printMenu()
+	{
+		cout << "=====================" << endl;
+		cout << "1 => Show All users" << endl;
+		cout << "2 => Sign in" << endl;
+		cout << "3 => Sign up" << endl;
+		cout << "0 => Exit" << endl;
+		cout << "=====================" << endl;
+
+	}
+
+	static void Control() {
+		Database db;
+		Registration twitter(&db);
+
+		// 1. All users
+		// 2. Sign in
+		// 3. Sign up
+		// 0. Exit
+
+		while (true)
+		{
+			printMenu();
+			int choice;
+			cout << endl << "enter your choice: ";
+			cin >> choice;
+
+			if (choice == 0)
+			{
+				system("cls");
+				cout << "bye bye..." << endl;
+				return;
+			}
+
+			else if (choice == 1)
+			{
+				system("cls");
+				db.printAllUsers();
+			}
+
+			else if (choice == 2)
+			{
+				system("cls");
+				cin.ignore();
+				string username;
+				string password;
+				cout << "enter username: ";
+				cin >> username;
+				if (db.CheckUser(username))
+				{
+					cout << "enter password: ";
+					cin >> password;
+					twitter.signIn(username, password);
+
+				}
+				else
+					assert(!"username not found!!!");
+			}
+
+			else if (choice == 3)
+			{
+				system("cls");
+				cin.ignore();
+				string username, name, surname;
+				string password;
+
+				cout << "enter name: ";
+				cin >> name;
+				cout << "enter surname: ";
+				cin >> surname;
+
+				cout << "enter username: ";
+				cin >> username;
+
+				if (db.CheckUser(username))
+					assert(!"database exception: this username already exists");
+				else
+				{
+					cout << "enter password: ";
+					cin >> password;
+					twitter.signUp(username, password, name, surname);
+				}
+
+			}
+
+			else
+			{
+				system("cls");
+				cout << "incorrect choice" << endl;
+				return;
+			}
+
+
+		}
+	}
+
+};
+
+void main() {
+	System::Control();
+	//system("pause");
+
+}
